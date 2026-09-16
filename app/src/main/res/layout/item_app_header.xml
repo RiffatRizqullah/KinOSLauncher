@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Alphabet separator header in the fullscreen app drawer. -->
+<android.widget.TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/header_letter"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fontFamily="sans-serif-medium"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="4dp"
+    android:textColor="@color/kinos_text_secondary"
+    android:textSize="14sp" />

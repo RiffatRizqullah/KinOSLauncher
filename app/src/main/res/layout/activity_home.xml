@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    KinOS home: an empty wallpaper screen with a clock centered on it.
+    The root view is the joystick-style dial selector; the home UI is its child
+    so the dial can fade in above everything when the user swipes from center.
+-->
+<com.riffat.kinoslauncher.KinOSDialSelectorView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/dial_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <android.widget.FrameLayout
+        android:id="@+id/home_root"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fitsSystemWindows="true"
+        android:saveEnabled="false">
+
+        <!-- Clock widget, dead center of the empty home. -->
+        <android.widget.LinearLayout
+            android:id="@+id/clock_container"
+            android:layout_width="303dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:longClickable="false"
+            android:orientation="vertical"
+            android:saveEnabled="false"
+            android:soundEffectsEnabled="false"
+            android:touchscreenBlocksFocus="false">
+
+            <android.widget.TextClock
+                android:id="@+id/text_clock"
+                android:layout_width="285dp"
+                android:layout_height="164dp"
+                android:fontFamily="sans-serif-light"
+                android:format12Hour="h:mm"
+                android:format24Hour="HH:mm"
+                android:gravity="center"
+                android:linksClickable="false"
+                android:longClickable="false"
+                android:shadowColor="#80000000"
+                android:shadowDx="0"
+                android:shadowDy="2"
+                android:shadowRadius="12"
+                android:textColor="@color/kinos_text_primary"
+                android:textSize="120sp"
+                tools:ignore="TextSizeCheck" />
+
+            <android.widget.TextClock
+                android:id="@+id/text_date"
+                android:layout_width="272dp"
+                android:layout_height="26dp"
+                android:layout_marginTop="6dp"
+                android:fontFamily="sans-serif-medium"
+                android:format12Hour="EEE, d MMM yyyy"
+                android:format24Hour="EEE, d MMM yyyy"
+                android:gravity="center"
+                android:linksClickable="false"
+                android:longClickable="false"
+                android:shadowColor="#80000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="8"
+                android:textColor="@color/kinos_text_secondary"
+                android:textSize="16sp"
+                tools:ignore="TextSizeCheck" />
+        </android.widget.LinearLayout>
+
+        <!-- Bottom hints, shown until the user performs the gestures once. -->
+        <android.widget.LinearLayout
+            android:id="@+id/hint_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="44dp"
+            android:alpha="0.8"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <android.widget.TextView
+                android:id="@+id/hint_swipe"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:shadowColor="#80000000"
+                android:shadowDy="1"
+                android:shadowRadius="6"
+                android:text="@string/hint_swipe"
+                android:textColor="@color/kinos_text_secondary"
+                android:textSize="13sp" />
+
+            <android.widget.TextView
+                android:id="@+id/hint_wallpaper"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:shadowColor="#80000000"
+                android:shadowDy="1"
+                android:shadowRadius="6"
+                android:text="@string/hint_wallpaper"
+                android:textColor="@color/kinos_hint_text"
+                android:textSize="12sp" />
+        </android.widget.LinearLayout>
+    </android.widget.FrameLayout>
+</com.riffat.kinoslauncher.KinOSDialSelectorView>

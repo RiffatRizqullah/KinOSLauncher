@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KinOS</string>
+
+    <!-- Home hints -->
+    <string name="hint_swipe">Touch to open quick launch • slide down for all apps</string>
+    <string name="hint_wallpaper">Long-press for wallpaper &amp; widgets</string>
+
+    <!-- Dial -->
+    <string name="dial_cancel">Release outside the dial to cancel</string>
+    <string name="dial_more_apps">more</string>
+    <string name="dial_reset">Tap letters to jump</string>
+
+    <!-- Wallpaper picker chooser title -->
+    <string name="wallpaper_picker_title">Choose wallpaper</string>
+
+    <!-- Info screen -->
+    <string name="info_version">Version %1$s</string>
+
+    <!-- Default home prompt -->
+    <string name="set_default_home_hint">Select KinOS as your Home app</string>
+
+    <!-- Fullscreen app drawer -->
+    <string name="drawer_settings_entry">KinOS Settings</string>
+
+    <!-- Settings menu -->
+    <string name="settings_menu_title">Settings</string>
+    <string name="settings_quick_launch">Quick Launch App</string>
+    <string name="settings_quick_launch_sub">Choose up to 10 apps for the dial</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_sub">About KinOS launcher</string>
+    <string name="about_copyright">© 2026 Riffat All Rights Reserved</string>
+
+    <!-- Settings: quick-launch picker -->
+    <string name="settings_title">Quick launch</string>
+    <string name="settings_counter">%1$d of %2$d selected</string>
+    <string name="settings_max_reached">Maximum reached</string>
+    <string name="settings_saved">Saved</string>
+    <string name="settings_save">Save</string>
+</resources>

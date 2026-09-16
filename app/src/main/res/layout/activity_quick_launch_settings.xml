@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quick Launch App settings: pick up to 10 quick-launch favorites for the dial.
+    Transparent background like the app drawer. -->
+<android.widget.LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <android.widget.TextView
+        android:id="@+id/settings_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:padding="16dp"
+        android:text="@string/settings_quick_launch"
+        android:textColor="@color/kinos_text_primary"
+        android:textSize="18sp" />
+
+    <android.widget.TextView
+        android:id="@+id/settings_counter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
+        android:textColor="@color/kinos_text_secondary"
+        android:textSize="13sp" />
+
+    <ListView
+        android:id="@+id/settings_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:divider="#22FFFFFF"
+        android:dividerHeight="1dp"
+        android:fadingEdge="vertical"
+        android:fadingEdgeLength="56dp"
+        android:paddingStart="16dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="24dp"
+        android:requiresFadingEdge="vertical" />
+
+    <android.widget.Button
+        android:id="@+id/settings_save"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:text="@string/settings_save" />
+</android.widget.LinearLayout>

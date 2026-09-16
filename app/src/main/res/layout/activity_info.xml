@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- About screen: KinOS hero panel with white-on-black ring decorations.
+    Transparent background like the other settings screens. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:fitsSystemWindows="true">
+
+    <android.widget.LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="32dp">
+
+        <!-- Decorative concentric rings (same motif as the dial pointer). -->
+        <FrameLayout
+            android:layout_width="168dp"
+            android:layout_height="168dp"
+            android:layout_marginTop="24dp">
+
+            <android.widget.ImageView
+                android:layout_width="168dp"
+                android:layout_height="168dp"
+                android:alpha="0.35"
+                android:contentDescription="@null"
+                android:src="@drawable/bg_dial_thumb" />
+
+            <android.widget.ImageView
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_gravity="center"
+                android:alpha="0.6"
+                android:contentDescription="@null"
+                android:src="@drawable/bg_dial_thumb" />
+
+            <android.widget.ImageView
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@mipmap/ic_launcher" />
+        </FrameLayout>
+
+        <!-- Hero title. -->
+        <android.widget.TextView
+            android:id="@+id/info_app_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:fontFamily="sans-serif-light"
+            android:gravity="center"
+            android:letterSpacing="0.25"
+            android:shadowColor="#80000000"
+            android:shadowDx="0"
+            android:shadowDy="2"
+            android:shadowRadius="12"
+            android:textColor="@color/kinos_text_primary"
+            android:textSize="64sp" />
+
+        <!-- Hairline divider with center dot. -->
+        <android.widget.LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:alpha="0.4"
+                android:background="@color/kinos_text_primary" />
+
+            <View
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/bg_dot" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:alpha="0.4"
+                android:background="@color/kinos_text_primary" />
+        </android.widget.LinearLayout>
+
+        <android.widget.TextView
+            android:id="@+id/info_app_version"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textColor="@color/kinos_text_secondary"
+            android:textSize="14sp" />
+
+        <android.widget.TextView
+            android:id="@+id/info_copyright"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="24dp"
+            android:text="@string/about_copyright"
+            android:textColor="@color/kinos_text_secondary"
+            android:textSize="12sp" />
+    </android.widget.LinearLayout>
+</ScrollView>

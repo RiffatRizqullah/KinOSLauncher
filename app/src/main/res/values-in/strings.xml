@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KinOS</string>
+
+    <!-- Home hints -->
+    <string name="hint_swipe">Geser di mana saja untuk membuka aplikasi</string>
+    <string name="hint_wallpaper">Tekan lama untuk wallpaper &amp; widget</string>
+
+    <!-- Dial -->
+    <string name="dial_cancel">Lepaskan di luar dial untuk membatalkan</string>
+    <string name="dial_more_apps">lagi</string>
+    <string name="dial_reset">Ketuk huruf untuk melompat</string>
+
+    <!-- Wallpaper picker chooser title -->
+    <string name="wallpaper_picker_title">Pilih wallpaper</string>
+
+    <!-- Info screen -->
+    <string name="info_version">Versi %1$s</string>
+
+    <!-- Default home prompt -->
+    <string name="set_default_home_hint">Pilih KinOS sebagai aplikasi Home</string>
+</resources>

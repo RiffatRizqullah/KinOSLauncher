@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One entry in the KinOS Settings menu (icon + title + subtitle). -->
+<android.widget.LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="10dp"
+    android:paddingEnd="10dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp">
+
+    <android.widget.ImageView
+        android:id="@+id/menu_icon"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:alpha="0.6"
+        android:contentDescription="@null" />
+
+    <android.widget.LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <android.widget.TextView
+            android:id="@+id/menu_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:textColor="@color/kinos_text_primary"
+            android:textSize="16sp" />
+
+        <android.widget.TextView
+            android:id="@+id/menu_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:maxLines="2"
+            android:textColor="@color/kinos_text_secondary"
+            android:textSize="13sp" />
+    </android.widget.LinearLayout>
+</android.widget.LinearLayout>

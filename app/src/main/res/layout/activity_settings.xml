@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KinOS Settings menu. Transparent background like the app drawer: the live
+    wallpaper shows through (the theme already draws it behind this activity). -->
+<android.widget.LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <android.widget.TextView
+        android:id="@+id/settings_menu_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:padding="16dp"
+        android:text="@string/settings_menu_title"
+        android:textColor="@color/kinos_text_primary"
+        android:textSize="18sp" />
+
+    <ListView
+        android:id="@+id/settings_menu_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:divider="#22FFFFFF"
+        android:dividerHeight="1dp"
+        android:fadingEdge="vertical"
+        android:fadingEdgeLength="56dp"
+        android:paddingStart="16dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="24dp"
+        android:requiresFadingEdge="vertical" />
+</android.widget.LinearLayout>
