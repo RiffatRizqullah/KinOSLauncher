@@ -34,19 +34,20 @@
             <android.widget.TextClock
                 android:id="@+id/text_clock"
                 android:layout_width="285dp"
-                android:layout_height="164dp"
+                android:layout_height="140dp"
                 android:fontFamily="sans-serif-light"
                 android:format12Hour="h:mm"
                 android:format24Hour="HH:mm"
                 android:gravity="center"
+                android:letterSpacing="-0.02"
                 android:linksClickable="false"
                 android:longClickable="false"
-                android:shadowColor="#80000000"
+                android:shadowColor="#99000000"
                 android:shadowDx="0"
                 android:shadowDy="2"
-                android:shadowRadius="12"
+                android:shadowRadius="16"
                 android:textColor="@color/kinos_text_primary"
-                android:textSize="120sp"
+                android:textSize="100sp"
                 tools:ignore="TextSizeCheck" />
 
             <android.widget.TextClock

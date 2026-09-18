@@ -2,7 +2,6 @@ package com.riffat.kinoslauncher;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
-import android.app.Activity;
 import android.app.role.RoleManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -21,8 +20,12 @@ import android.widget.Toast;
  *
  * <p>On first startup the user is asked to make KinOS the default home screen
  * ({@link RoleManager} dialog on Android 10+, fallback to system settings).</p>
+ *
+ * <p>Extends {@link androidx.activity.ComponentActivity} (bukan {@code Activity})
+ * agar {@code ComposeView} di drawer punya ViewTreeLifecycleOwner — fix
+ * freeze-then-crash di Oppo A17 / ColorOS.</p>
  */
-public class HomeActivity extends Activity {
+public class HomeActivity extends androidx.activity.ComponentActivity {
 
     private static final String PREFS = "kinos_home";
     private static final String KEY_HINTS_SHOWN = "hints_shown";
@@ -58,23 +61,27 @@ public class HomeActivity extends Activity {
             @Override
             public void onDialOpened() {
                 maybeHideTime();
+                setWallpaperBlur(true);
             }
 
             @Override
             public void onDialClosed() {
                 showTime();
+                setWallpaperBlur(false);
             }
         });
         dialView.setDrawerListener(new KinOSDialSelectorView.DrawerListener() {
             @Override
             public void onDrawerOpened() {
                 maybeHideTime();
+                setWallpaperBlur(true);
             }
 
             @Override
             public void onDrawerClosed() {
                 if (!dialView.isDialOpen()) {
                     showTime();
+                    setWallpaperBlur(false);
                 }
             }
 
@@ -258,6 +265,47 @@ public class HomeActivity extends Activity {
         timeContainer.setVisibility(View.VISIBLE);
         timeContainer.animate().alpha(1f).setDuration(150)
                 .setListener(null).start();
+    }
+
+    /**
+     * Cross-window wallpaper blur — OPT-IN aman untuk ColorOS/Oppo.
+     * Aktif hanya API 33+ dan bukan OPPO/Realme/OnePlus (ColorOS sering stall
+     * saat FLAG_BLUR_BEHIND). Dijalankan via post agar tidak blokir open-dial,
+     * catch Throwable (bukan cuma RuntimeException). Default: scrim gradient
+     * sudah cukup di Oppo A17.
+     */
+    private void setWallpaperBlur(final boolean enabled) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return;
+        try {
+            final String m = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.toLowerCase();
+            if (m.contains("oppo") || m.contains("realme") || m.contains("oneplus")) return;
+        } catch (RuntimeException ignored) {
+            return;
+        }
+        try {
+            final View decor = getWindow() != null ? getWindow().getDecorView() : null;
+            if (decor == null) return;
+            decor.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        final android.view.WindowManager.LayoutParams attrs =
+                                getWindow().getAttributes();
+                        attrs.setBlurBehindRadius(enabled ? 18 : 0);
+                        getWindow().setAttributes(attrs);
+                        if (enabled) {
+                            getWindow().addFlags(
+                                    android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+                        } else {
+                            getWindow().clearFlags(
+                                    android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
+        } catch (Throwable ignored) {
+        }
     }
 
 }

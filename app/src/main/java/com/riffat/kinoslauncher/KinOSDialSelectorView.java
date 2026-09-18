@@ -13,7 +13,9 @@ import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
-import android.view.animation.DecelerateInterpolator;
+import android.view.animation.Interpolator;
+import android.view.animation.OvershootInterpolator;
+import android.view.animation.PathInterpolator;
 import android.widget.AdapterView;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -64,6 +66,16 @@ public class KinOSDialSelectorView extends FrameLayout {
     private static final float BLOB_HOVER_SCALE = 1.1f;
     /** Circle growth factor during the launch animation. */
     private static final float SELECT_CIRCLE_SCALE = 1.5f;
+    /** Opaque black ring 48dp menjorok ke DALAM dari tepi fill (peek 10% di luar tetap terlihat). */
+    private static final float RING_WIDTH_DP = 48f;
+    /** Hovered slot Z: above fill (0), ring (0.5) and title (1). Select stays 3. */
+    private static final float HOVER_Z = 1.5f;
+    private static final float RING_Z = 0.5f;
+    /** Safe margin from screen edges for hovered icons. */
+    private static final float HOVER_EDGE_MARGIN_DP = 16f;
+    /** Dial parallax: lingkaran bergeser -5% dari titik buka (arah negatif jari). */
+    private static final float DIAL_PARALLAX_FACTOR = 0.05f;
+    private static final float DIAL_PARALLAX_MAX_DP = 24f;
     private static final float DIAL_TITLE_SP = 22f;
 
     /** Start of the slot circle, degrees (screen coords: 0 = right, 90 = down). */
@@ -72,14 +84,19 @@ public class KinOSDialSelectorView extends FrameLayout {
     private static final float ALLOWED_SWEEP_DEG = 360f;
 
     // ---- Opening animation ------------------------------------------------------------
+    // Diselaraskan dengan MotionTokens (Compose): Fast 150 / Standard 250 / Emphasized 350.
     private static final long DIAL_FADE_IN_MS = 150;
     private static final long DIAL_FADE_OUT_MS = 150;
-    private static final long RESET_DELAY_MS = 250L;
-    private static final long HOVER_MS = 180L;
-    private static final long SELECT_MS = 220L;
+    private static final long RESET_DELAY_MS = 120L;
+    private static final long HOVER_MS = 350L;
+    private static final long SELECT_MS = 450L;
     /** Hold-this-long to open the dial; a direct drag opens it immediately. */
     private static final long HOLD_DELAY_MS = 100L;
-    private static final long GROW_MS = 250L;
+    private static final long GROW_MS = 450L;
+
+    private static final Interpolator STANDARD = new PathInterpolator(0.2f, 0f, 0f, 1f);
+    /** Elastic murah (overshoot tunggal) khusus tween GERAK; fade alpha tetap STANDARD. */
+    private static final Interpolator ELASTIC = new OvershootInterpolator(2.0f);
 
     private static final int INVALID_POINTER = -1;
 
@@ -102,6 +119,9 @@ public class KinOSDialSelectorView extends FrameLayout {
     private float pointerY = 0f;
     private float dialCx = 0f;
     private float dialCy = 0f;
+    /** Jangkar parallax: posisi jari saat dial dibuka. */
+    private float openPx = 0f;
+    private float openPy = 0f;
     private int highlightedIndex = -1;
     private AppItem selectedApp = null;
     private ValueAnimator fadeAnim;
@@ -114,6 +134,8 @@ public class KinOSDialSelectorView extends FrameLayout {
     private final View blob;
     private final DrawerListView drawerList;
     private final AppDrawerAdapter drawerAdapter;
+    /** Ring opaque hitam 16dp menutupi icon idle yang sembunyi di balik fill translusen. */
+    private final View ringBg;
     private final List<Slot> slots = new ArrayList<>();
 
     // ---- Helpers ----------------------------------------------------------------------
@@ -223,6 +245,7 @@ public class KinOSDialSelectorView extends FrameLayout {
         blob = new View(getContext());
         drawerList = new DrawerListView(getContext());
         drawerAdapter = new AppDrawerAdapter(getContext());
+        ringBg = new View(getContext());
         initializeViews();
     }
 
@@ -241,17 +264,40 @@ public class KinOSDialSelectorView extends FrameLayout {
         addView(quickLayer,
                 new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
-        // Opaque black circle behind the dial so icons and title stay readable.
+        // Translusen + stroke tipis (eye-comfort) pengganti hitam pekat.
         final GradientDrawable circle = new GradientDrawable();
         circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(0xFF000000);
+        try {
+            circle.setColor(
+                    androidx.core.content.ContextCompat.getColor(getContext(), R.color.kinos_dial_surface));
+            circle.setStroke(dp(1f),
+                    androidx.core.content.ContextCompat.getColor(getContext(), R.color.kinos_dial_accent) & 0x33FFFFFF);
+        } catch (android.content.res.Resources.NotFoundException e) {
+            circle.setColor(0xFF2C2C2E);
+        }
         circleBg.setBackground(circle);
         circleBg.setClickable(false);
         circleBg.setFocusable(false);
 
+        // Ring tebal opaque hitam di tepi lingkaran: menutupi icon idle yang
+        // sembunyi di balik fill translusen. Fill transparan, stroke 48dp hitam
+        // menjorok ke dalam (tepi luar tepat di tepi fill agar peek 10% terlihat).
+        final GradientDrawable ring = new GradientDrawable();
+        ring.setShape(GradientDrawable.OVAL);
+        ring.setColor(0x00000000);
+        ring.setStroke(dp(RING_WIDTH_DP), 0xFF000000);
+        ringBg.setBackground(ring);
+        ringBg.setClickable(false);
+        ringBg.setFocusable(false);
+
         // Dial-relative title at the circle center, shown while hovering a slot.
         dialTitle.setGravity(Gravity.CENTER);
-        dialTitle.setTextColor(0xFFFFFFFF);
+        try {
+            dialTitle.setTextColor(
+                    androidx.core.content.ContextCompat.getColor(getContext(), R.color.kinos_text_primary));
+        } catch (android.content.res.Resources.NotFoundException e) {
+            dialTitle.setTextColor(0xFFF5F1E8);
+        }
         dialTitle.setTextSize(DIAL_TITLE_SP);
         dialTitle.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         dialTitle.setShadowLayer(6f, 0f, 1f, 0x80000000);
@@ -273,6 +319,9 @@ public class KinOSDialSelectorView extends FrameLayout {
         // Center pivot so hover scaling grows around the touch point, not a corner.
         blob.setPivotX(blobPx / 2f);
         blob.setPivotY(blobPx / 2f);
+        // Hardware layer untuk tracking 1:1 tanpa jank di low-end.
+        blob.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        quickLayer.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         addView(blob, new LayoutParams(blobPx, blobPx, Gravity.TOP | Gravity.START));
 
         // Fullscreen drawer: hidden until the blob is dragged downward.
@@ -463,6 +512,7 @@ public class KinOSDialSelectorView extends FrameLayout {
                 }
                 if (!dialOpen || drawerOpen) return true;
                 moveBlobTo(pointerX, pointerY);
+                updateDialParallax();
                 updateHover();
                 if (pointerY - downY > drawerTriggerPx()) {
                     openDrawer();
@@ -547,6 +597,8 @@ public class KinOSDialSelectorView extends FrameLayout {
         final float[] clamped = clampCenter(x, y);
         dialCx = clamped[0];
         dialCy = clamped[1];
+        openPx = pointerX;
+        openPy = pointerY;
         quickLayer.setVisibility(VISIBLE);
         layoutSlots();
         // Grow out of the finger: pivot at the dial center, 1% -> full,
@@ -557,15 +609,17 @@ public class KinOSDialSelectorView extends FrameLayout {
         quickLayer.setScaleX(0.01f);
         quickLayer.setScaleY(0.01f);
         quickLayer.animate().scaleX(1f).scaleY(1f)
-                .setDuration(GROW_MS)
-                .setInterpolator(new DecelerateInterpolator(1.5f))
+                .setDuration(animDuration(GROW_MS))
+                .setInterpolator(ELASTIC)
+                .withLayer()
                 .setListener(null)
                 .start();
         moveBlobTo(pointerX, pointerY);
         blob.setVisibility(VISIBLE);
         blob.setScaleX(0.5f);
         blob.setScaleY(0.5f);
-        blob.animate().scaleX(1f).scaleY(1f).setDuration(150).setListener(null).start();
+        blob.animate().scaleX(1f).scaleY(1f).setDuration(animDuration(150))
+                .setInterpolator(ELASTIC).withLayer().setListener(null).start();
         if (dialListener != null) {
             dialListener.onDialOpened();
         }
@@ -581,7 +635,8 @@ public class KinOSDialSelectorView extends FrameLayout {
             fadeAnim.cancel();
         }
         quickLayer.animate().cancel();
-        quickLayer.animate().alpha(0f).setDuration(150)
+        quickLayer.animate().alpha(0f).setDuration(animDuration(150))
+                .setInterpolator(STANDARD).withLayer()
                 .setListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
@@ -593,7 +648,8 @@ public class KinOSDialSelectorView extends FrameLayout {
         drawerAdapter.setApps(new ArrayList<>(model.apps));
         drawerList.setVisibility(VISIBLE);
         drawerList.setAlpha(0f);
-        drawerList.animate().alpha(1f).setDuration(200).setListener(null).start();
+        drawerList.animate().alpha(1f).setDuration(animDuration(200))
+                .setInterpolator(STANDARD).withLayer().setListener(null).start();
         drawerList.bringToFront();
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
         if (drawerListener != null) {
@@ -616,7 +672,8 @@ public class KinOSDialSelectorView extends FrameLayout {
         drawerList.animate().cancel();
         if (wasDrawer) {
             // Fade the drawer out instead of dropping it instantly.
-            drawerList.animate().alpha(0f).setDuration(DIAL_FADE_OUT_MS)
+            drawerList.animate().alpha(0f).setDuration(animDuration(DIAL_FADE_OUT_MS))
+                    .setInterpolator(STANDARD).withLayer()
                     .setListener(new AnimatorListenerAdapter() {
                         @Override
                         public void onAnimationEnd(Animator animation) {
@@ -653,8 +710,15 @@ public class KinOSDialSelectorView extends FrameLayout {
             fadeAnim.cancel();
         }
         final float target = show ? 1f : 0f;
-        final long duration = show ? DIAL_FADE_IN_MS : DIAL_FADE_OUT_MS;
+        final long duration = animDuration(show ? DIAL_FADE_IN_MS : DIAL_FADE_OUT_MS);
+        if (duration <= 0) {
+            scrim.setAlpha(target);
+            quickLayer.setAlpha(target);
+            if (!show && onDone != null) onDone.run();
+            return;
+        }
         fadeAnim = ValueAnimator.ofFloat(scrim.getAlpha(), target).setDuration(duration);
+        fadeAnim.setInterpolator(STANDARD);
         fadeAnim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
@@ -703,14 +767,26 @@ public class KinOSDialSelectorView extends FrameLayout {
         final float circleR = circleRadiusPx(count);
         final int circlePx = Math.round(circleR * 2f);
 
-        // Opaque black circle covering the idle slots (only ~10% of each icon
-        // peeks out). Z order: idle slots (-1) < circle (0) < title (1) <
-        // hovered slot (2) < selected slot (3).
+        // Fill translusen + ring opaque: idle slots (-1) < fill (0) < ring (0.5)
+        // < title (1) < hovered slot (1.5) < selected slot (3). Ring 48dp
+        // seukuran fill, menjorok ke dalam; peek 10% di luar tepi tetap terlihat.
         circleBg.setZ(0f);
         quickLayer.addView(circleBg,
                 new FrameLayout.LayoutParams(circlePx, circlePx));
         circleBg.setX(dialCx - circleR);
         circleBg.setY(dialCy - circleR);
+        circleBg.setScaleX(1f);
+        circleBg.setScaleY(1f);
+
+        final int ringPx = circlePx;
+        final float ringHalf = ringPx / 2f;
+        ringBg.setZ(RING_Z);
+        quickLayer.addView(ringBg,
+                new FrameLayout.LayoutParams(ringPx, ringPx));
+        ringBg.setX(dialCx - ringHalf);
+        ringBg.setY(dialCy - ringHalf);
+        ringBg.setScaleX(1f);
+        ringBg.setScaleY(1f);
 
         // Dial-relative title at the circle center (follows the circle).
         dialTitle.setText("");
@@ -773,42 +849,104 @@ public class KinOSDialSelectorView extends FrameLayout {
         return quickRadiusPx(count) + dp(QUICK_ICON_DP) * (0.5f - IDLE_PEEK_FRACTION);
     }
 
-    /** Animates a slot back to idle, tucking it behind the circle on arrival. */
+    /** Deselect: pindah ke belakang fill+ring DULU, baru tween masuk (elastic). */
     private void animateToIdle(Slot slot) {
-        final long seq = ++slot.animSeq;
+        slot.animSeq++;
         slot.view.animate().cancel();
+        slot.view.setZ(-1f);
         slot.view.animate()
                 .x(slot.idleX).y(slot.idleY)
                 .rotation(slot.idleRotation)
                 .scaleX(1f).scaleY(1f)
-                .setDuration(HOVER_MS)
-                .setInterpolator(new DecelerateInterpolator(1.2f))
+                .setDuration(animDuration(HOVER_MS))
+                .setInterpolator(ELASTIC)
+                .withLayer()
+                .setListener(null)
+                .start();
+    }
+
+    /**
+     * Hover 2 leg (elastic): leg-1 selalu tween ke posisi luar (diizinkan
+     * berujung off-screen), lalu jika off-screen, leg-2 tween lagi ke posisi
+     * clamp di dalam layar (margin 16dp). Z 1.5 dipasang di awal leg-1 agar
+     * terbang di atas fill + ring selama kedua leg.
+     */
+    private void animateToHover(Slot slot) {
+        final long seq = ++slot.animSeq;
+        final int iconPx = dp(QUICK_ICON_DP);
+        final float hoverSize = iconPx * HOVER_SCALE;
+        final float margin = dp(HOVER_EDGE_MARGIN_DP);
+        final int w = getWidth();
+        final int h = getHeight();
+        final boolean offScreen = w > 0 && h > 0
+                && (slot.outX < margin || slot.outY < margin
+                    || slot.outX + hoverSize > w - margin
+                    || slot.outY + hoverSize > h - margin);
+        // Z tidak diubah di awal: tween keluar dulu, naik ke atas saat tiba.
+        slot.view.animate().cancel();
+        if (!offScreen) {
+            slot.view.animate()
+                    .x(slot.outX).y(slot.outY)
+                    .rotation(0f)
+                    .scaleX(HOVER_SCALE).scaleY(HOVER_SCALE)
+                    .setDuration(animDuration(HOVER_MS))
+                    .setInterpolator(ELASTIC)
+                    .withLayer()
+                    .setListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            if (slot.animSeq == seq) {
+                                slot.view.setZ(HOVER_Z);
+                            }
+                        }
+                    })
+                    .start();
+            return;
+        }
+        // Leg 1: keluar (boleh off-screen), lalu leg 2: clamp ke dalam layar.
+        slot.view.animate()
+                .x(slot.outX).y(slot.outY)
+                .rotation(0f)
+                .scaleX(HOVER_SCALE).scaleY(HOVER_SCALE)
+                .setDuration(animDuration(HOVER_MS))
+                .setInterpolator(ELASTIC)
+                .withLayer()
                 .setListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
-                        if (slot.animSeq == seq) {
-                            slot.view.setZ(-1f);
-                        }
+                        if (slot.animSeq != seq) return;
+                        // Tiba di luar (off-screen): naik ke atas fill+ring dulu,
+                        // baru leg-2 clamp ke dalam layar.
+                        slot.view.setZ(HOVER_Z);
+                        final float[] clamped = clampHoverXY(
+                                slot.outX, slot.outY, hoverSize, margin, w, h);
+                        slot.view.animate().cancel();
+                        slot.view.animate()
+                                .x(clamped[0]).y(clamped[1])
+                                .rotation(0f)
+                                .scaleX(HOVER_SCALE).scaleY(HOVER_SCALE)
+                                .setDuration(animDuration(HOVER_MS))
+                                .setInterpolator(ELASTIC)
+                                .withLayer()
+                                .setListener(new AnimatorListenerAdapter() {
+                                    @Override
+                                    public void onAnimationEnd(Animator animation) {
+                                        if (slot.animSeq == seq) {
+                                            slot.view.setZ(HOVER_Z);
+                                        }
+                                    }
+                                })
+                                .start();
                     }
                 })
                 .start();
     }
 
-    /**
-     * Animates a slot to its hover pose outside the circle. Z is left alone:
-     * only the launch animation may rise above the circle.
-     */
-    private void animateToHover(Slot slot) {
-        slot.animSeq++;
-        slot.view.animate().cancel();
-        slot.view.animate()
-                .x(slot.outX).y(slot.outY)
-                .rotation(0f)
-                .scaleX(HOVER_SCALE).scaleY(HOVER_SCALE)
-                .setDuration(HOVER_MS)
-                .setInterpolator(new DecelerateInterpolator(1.2f))
-                .setListener(null)
-                .start();
+    /** Jepit kotak icon hover agar penuh di dalam layar (margin aman). */
+    private float[] clampHoverXY(float x, float y, float size, float margin, int w, int h) {
+        final float cx = Math.max(margin, Math.min(w - margin - size, x));
+        final float cy = Math.max(margin, Math.min(h - margin - size, y));
+        return new float[]{cx, cy};
     }
 
     /** Highlights the slot nearest the blob, showing its title at the dial center. */
@@ -863,8 +1001,9 @@ public class KinOSDialSelectorView extends FrameLayout {
         blob.animate().cancel();
         blob.animate()
                 .scaleX(scale).scaleY(scale)
-                .setDuration(150L)
-                .setInterpolator(new DecelerateInterpolator(1.2f))
+                .setDuration(animDuration(150L))
+                .setInterpolator(ELASTIC)
+                .withLayer()
                 .setListener(null)
                 .start();
     }
@@ -893,29 +1032,42 @@ public class KinOSDialSelectorView extends FrameLayout {
                 .x(dialCx - iconPx / 2f).y(dialCy - iconPx / 2f)
                 .rotation(0f)
                 .scaleX(SELECT_SCALE).scaleY(SELECT_SCALE)
-                .setDuration(SELECT_MS)
-                .setInterpolator(new DecelerateInterpolator(1.5f))
+                .setDuration(animDuration(SELECT_MS))
+                .setInterpolator(ELASTIC)
+                .withLayer()
                 .setListener(null)
                 .start();
-        // The black circle grows with the icon, tweened over the same duration.
+        // The circle fill + thick ring grow with the icon, same duration.
         final float circleR = circleRadiusPx(favorites.size());
         circleBg.setPivotX(circleR);
         circleBg.setPivotY(circleR);
         circleBg.animate().cancel();
         circleBg.animate()
                 .scaleX(SELECT_CIRCLE_SCALE).scaleY(SELECT_CIRCLE_SCALE)
-                .setDuration(SELECT_MS)
-                .setInterpolator(new DecelerateInterpolator(1.5f))
+                .setDuration(animDuration(SELECT_MS))
+                .setInterpolator(ELASTIC)
+                .withLayer()
+                .setListener(null)
+                .start();
+        final float ringHalf = circleR;
+        ringBg.setPivotX(ringHalf);
+        ringBg.setPivotY(ringHalf);
+        ringBg.animate().cancel();
+        ringBg.animate()
+                .scaleX(SELECT_CIRCLE_SCALE).scaleY(SELECT_CIRCLE_SCALE)
+                .setDuration(animDuration(SELECT_MS))
+                .setInterpolator(ELASTIC)
+                .withLayer()
                 .setListener(null)
                 .start();
         for (int i = 0; i < slots.size(); i++) {
             if (i == index) continue;
             final ImageView other = slots.get(i).view;
             other.animate().cancel();
-            other.animate().alpha(0f).setDuration(HOVER_MS).setListener(null).start();
+            other.animate().alpha(0f).setDuration(animDuration(HOVER_MS)).setListener(null).start();
         }
         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-        mainHandler.postDelayed(selectRunnable, SELECT_MS);
+        mainHandler.postDelayed(selectRunnable, animDuration(SELECT_MS));
     }
 
     private void showDialTitle(String label) {
@@ -930,14 +1082,16 @@ public class KinOSDialSelectorView extends FrameLayout {
             dialTitle.setAlpha(0f);
         }
         dialTitle.animate().cancel();
-        dialTitle.animate().alpha(1f).setDuration(150).setListener(null).start();
+        dialTitle.animate().alpha(1f).setDuration(animDuration(150))
+                .setInterpolator(STANDARD).withLayer().setListener(null).start();
     }
 
     private void hideDialTitle() {
         if (dialTitle.getVisibility() != VISIBLE) return;
         titleHiding = true;
         dialTitle.animate().cancel();
-        dialTitle.animate().alpha(0f).setDuration(120)
+        dialTitle.animate().alpha(0f).setDuration(animDuration(120))
+                .setInterpolator(STANDARD).withLayer()
                 .setListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
@@ -957,6 +1111,43 @@ public class KinOSDialSelectorView extends FrameLayout {
         final float half = dp(BLOB_SIZE_DP) / 2f;
         blob.setTranslationX(x - half);
         blob.setTranslationY(y - half);
+    }
+
+    /**
+     * Parallax lingkaran: fill + ring bergeser NEGATIF 5% dari perpindahan jari
+     * terhadap titik buka (jari ke atas → lingkaran ke bawah), dijepit ±24dp.
+     * Direct-set per MOVE (tanpa animator) agar murah di low-end; slot, title
+     * dan blob tidak ikut sehingga geometri hover tetap sinkron. Mati saat
+     * reduce-motion.
+     */
+    private void updateDialParallax() {
+        final float circleR = circleRadiusPx(Math.max(1, favorites.size()));
+        final float baseX = dialCx - circleR;
+        final float baseY = dialCy - circleR;
+        float ox = 0f;
+        float oy = 0f;
+        if (!isReduceMotion()) {
+            final float max = dp(DIAL_PARALLAX_MAX_DP);
+            ox = -DIAL_PARALLAX_FACTOR * (pointerX - openPx);
+            oy = -DIAL_PARALLAX_FACTOR * (pointerY - openPy);
+            ox = Math.max(-max, Math.min(max, ox));
+            oy = Math.max(-max, Math.min(max, oy));
+        }
+        circleBg.setX(baseX + ox);
+        circleBg.setY(baseY + oy);
+        ringBg.setX(baseX + ox);
+        ringBg.setY(baseY + oy);
+    }
+
+    /** True saat animator dimatikan sistem (reduce-motion): semua gerak jadi instan. */
+    private boolean isReduceMotion() {
+        try {
+            return android.provider.Settings.Global.getFloat(
+                    getContext().getContentResolver(),
+                    android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f;
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     private int touchSlopPx() {
@@ -1001,6 +1192,8 @@ public class KinOSDialSelectorView extends FrameLayout {
         quickLayer.setScaleY(1f);
         circleBg.setScaleX(1f);
         circleBg.setScaleY(1f);
+        ringBg.setScaleX(1f);
+        ringBg.setScaleY(1f);
         blob.setVisibility(GONE);
         scrim.setAlpha(0f);
         dialTitle.setVisibility(GONE);
@@ -1016,6 +1209,22 @@ public class KinOSDialSelectorView extends FrameLayout {
     // =====================================================================================
     // Utils
     // =====================================================================================
+
+    /**
+     * Skala durasi animasi: 0 saat reduce-motion / animator dimatikan,
+     * agar tetap responsif dan hemat baterai di low-end.
+     */
+    private long animDuration(long baseMs) {
+        try {
+            final float scale = android.provider.Settings.Global.getFloat(
+                    getContext().getContentResolver(),
+                    android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f);
+            if (scale == 0f) return 0L;
+            return Math.max(1L, (long) (baseMs * Math.min(2f, scale)));
+        } catch (RuntimeException e) {
+            return baseMs;
+        }
+    }
 
     private int dp(float value) {
         return Math.round(value * getResources().getDisplayMetrics().density);

@@ -64,7 +64,7 @@ public final class AppListModel {
 
             final CharSequence labelSeq = info.loadLabel(pm);
             final String label = labelSeq == null ? pkg : labelSeq.toString();
-            final Drawable icon = resolveIcon(pm, info);
+            final Drawable icon = resolveIcon(context, pm, info);
             if (icon == null) continue;
 
             found.add(new AppItem(label, pkg, info.activityInfo.name, icon));
@@ -129,7 +129,7 @@ public final class AppListModel {
         return ordered;
     }
 
-    private static Drawable resolveIcon(PackageManager pm, ResolveInfo info) {
+    private static Drawable resolveIcon(Context context, PackageManager pm, ResolveInfo info) {
         Drawable icon = null;
         try {
             icon = info.loadIcon(pm);
@@ -139,14 +139,19 @@ public final class AppListModel {
         if (icon == null) {
             icon = pm.getDefaultActivityIcon();
         }
+        final android.content.res.Resources res = context != null ? context.getResources() : null;
         if (icon instanceof BitmapDrawable) {
-            return icon;
+            return downscaleIfNeeded((BitmapDrawable) icon, res);
         }
         // Flatten adaptive/vector icons into a bitmap so every cell renders uniformly.
+        // Cap 96px: cukup untuk slot 52dp @xxxhdpi, hemat memori low-end.
         try {
             final int size = icon.getIntrinsicWidth();
-            final int w = size > 0 ? size : 48;
-            final int h = icon.getIntrinsicHeight() > 0 ? icon.getIntrinsicHeight() : w;
+            final int w0 = size > 0 ? size : 96;
+            final int h0 = icon.getIntrinsicHeight() > 0 ? icon.getIntrinsicHeight() : w0;
+            final float scale = Math.min(1f, 96f / Math.max(w0, h0));
+            final int w = Math.max(1, Math.round(w0 * scale));
+            final int h = Math.max(1, Math.round(h0 * scale));
             final Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             final Canvas canvas = new Canvas(bmp);
             icon.setBounds(0, 0, w, h);
@@ -154,6 +159,22 @@ public final class AppListModel {
             return new BitmapDrawable(pm.getResourcesForApplication(info.activityInfo.applicationInfo), bmp);
         } catch (PackageManager.NameNotFoundException | RuntimeException | OutOfMemoryError e) {
             return icon;
+        }
+    }
+
+    private static Drawable downscaleIfNeeded(BitmapDrawable d, android.content.res.Resources res) {
+        try {
+            final android.graphics.Bitmap bmp = d.getBitmap();
+            if (bmp == null || (bmp.getWidth() <= 96 && bmp.getHeight() <= 96)) return d;
+            final float scale = 96f / Math.max(bmp.getWidth(), bmp.getHeight());
+            final int w = Math.max(1, Math.round(bmp.getWidth() * scale));
+            final int h = Math.max(1, Math.round(bmp.getHeight() * scale));
+            final android.graphics.Bitmap small =
+                    android.graphics.Bitmap.createScaledBitmap(bmp, w, h, true);
+            if (res != null) return new BitmapDrawable(res, small);
+            return new BitmapDrawable(small);
+        } catch (RuntimeException | OutOfMemoryError e) {
+            return d;
         }
     }
 }
